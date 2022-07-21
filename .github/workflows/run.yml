@@ -1,0 +1,59 @@
+name: Generate RULE-SET for Clash
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: "30 * * * *"
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+
+      - name: Checkout
+        uses: actions/checkout@v3
+        with:
+          ref: coc
+
+      - name: Set variables
+        run: |
+          echo "RELEASE_NAME=Released on $(date +%Y%m%d%H%M)" >> $GITHUB_ENV
+          echo "TAG_NAME=$(date +%Y%m%d%H%M)" >> $GITHUB_ENV
+          echo "from_url_prefix=https://raw.githubusercontent.com/Lixiongyou/clash-of-clans/coc" >> $GITHUB_ENV
+          echo "generator_url=http://bykia.com/generate_payload_yaml" >> $GITHUB_ENV
+          echo "reject_yaml=REJECT.yaml" >> $GITHUB_ENV
+          echo "proxy_yaml=PROXY.yaml" >> $GITHUB_ENV
+          echo "direct_yaml=DIRECT.yaml" >> $GITHUB_ENV
+        shell: bash
+
+      - name: Generate REJECT.yaml
+        run: |
+          full_reject_url="${generator_url}?from_url=${from_url_prefix}/${reject_yaml}&from_file=/tmp/${reject_yaml}"
+          echo "full_reject_url:${full_reject_url}"
+          curl -s -S -f -o $reject_yaml "$full_reject_url"
+
+      - name: Generate PROXY.yaml
+        run: |
+          full_proxy_url="${generator_url}?from_url=${from_url_prefix}/${proxy_yaml}&from_file=/tmp/${proxy_yaml}"
+          echo "full_proxy_url:${full_proxy_url}"
+          curl -s -S -f -o $proxy_yaml "$full_proxy_url"
+
+      - name: Generate DIRECT.yaml
+        run: |
+          full_direct_url="${generator_url}?from_url=${from_url_prefix}/${direct_yaml}&from_file=/tmp/${direct_yaml}"
+          echo "full_direct_url:${full_direct_url}"
+          curl -s -S -f -o $direct_yaml "$full_direct_url"
+
+      - name: Git push assets to "coc" branch
+        run: |
+          git config --local user.name "github-actions[bot]"
+          git config --local user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git status
+          git add .
+          git commit -m "${{ env.RELEASE_NAME }}" || exit 0
+          git push
+
+      - name: Cleanup Workflow
+        uses: Mattraks/delete-workflow-runs@main
+        with:
+          retain_days: 1
+          keep_minimum_runs: 3
